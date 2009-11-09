@@ -1,0 +1,473 @@
+#!/usr/bin/python2.5
+# -*- coding: utf-8 -*-
+# Zoutube - Youtube browser and player
+# Copyright (C) 2009 Zaheer Abbas Merali <zaheerabbas at merali dot org>
+# Borrowed code from: Canola2 Youtube Plugin (license of which shown below)
+# Copyright (C) 2008 Instituto Nokia de Tecnologia
+# Author: Adriano Rezende <adriano.rezende@openbossa.org>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Additional permission under GNU GPL version 3 section 7
+#
+# If you modify this Program, or any covered work, by linking or combining it
+# with Canola2 and its core components (or a modified version of any of those),
+# containing parts covered by the terms of Instituto Nokia de Tecnologia End
+# User Software Agreement, the licensors of this Program grant you additional
+# permission to convey the resulting work.
+
+import re
+import httplib
+import urllib2
+import socket
+import gobject
+gobject.threads_init()
+import gtk
+gtk.gdk.threads_init()
+import hildon
+import gst
+from threading import Thread
+
+try:
+    from xml.etree import cElementTree as ElementTree
+except ImportError:
+    try:
+        import cElementTree as ElementTree
+    except ImportError:
+ 	    from elementtree import ElementTree
+
+
+# taken from play.py in gst-python examples
+class VideoWidget(gtk.DrawingArea):
+    def __init__(self):
+        gtk.DrawingArea.__init__(self)
+        self.imagesink = None
+        self.unset_flags(gtk.DOUBLE_BUFFERED)
+
+    def do_expose_event(self, event):
+        if self.imagesink:
+            self.imagesink.expose()
+            return False
+        else:
+            return True
+
+    def set_sink(self, sink):
+        assert self.window.xid
+        self.imagesink = sink
+        self.imagesink.set_xwindow_id(self.window.xid)
+
+def to_utf8(str):
+    return unicode(str).decode('utf8')
+
+class YouTube(object):
+    """YouTube Backend.
+
+    This class provides an interface to search for videos on youtube server.
+
+    @see YouTubeEntry
+    """
+    url_standardfeeds = "http://gdata.youtube.com/feeds/standardfeeds"
+    url_video_search = "http://gdata.youtube.com/feeds/api/videos"
+    url_video_request = "http://www.youtube.com/watch?v=%s"
+    url_video_request_flv = "http://www.youtube.com/get_video?video_id=%s&t=%s"
+    url_categories = "http://gdata.youtube.com/schemas/2007/categories.cat"
+    url_video_by_category = "http://gdata.youtube.com/feeds/videos/-"
+
+    def __init__(self):
+        self.last_summary = {}
+
+    def _request(self, url, *params):
+        """Return feed content of a specific url."""
+        xml = urllib2.urlopen(url % params).read()
+        self.last_summary, entries = parse_youtube_xml(xml)
+        return entries
+
+    def search(self, query):
+        """Search for video by keywords."""
+        return self._request("%s?vq=%s",
+                             self.url_video_search, urllib2.quote(query))
+
+    def top_rated(self):
+        """Return the top rated videos."""
+        return self._request("%s/top_rated", self.url_standardfeeds)
+
+    def most_viewed(self):
+        """Return the most viewed videos."""
+        return self._request("%s/most_viewed", self.url_standardfeeds)
+
+    def most_recent(self):
+        """Return the most recently posted videos."""
+        return self._request("%s?vq=*&orderby=published",
+                             self.url_video_search)
+
+    def recently_featured(self):
+        """Return the recently featured videos."""
+        return self._request("%s/recently_featured",
+                             self.url_standardfeeds)
+
+    def category_list(self):
+        """Return a list of video categories."""
+        xml = urllib2.urlopen(self.url_categories).read()
+
+        tree = ElementTree.fromstring(xml)
+        categories = {}
+        for child in tree.getchildren():
+            categories[child.get('term')] = child.get('label')
+        return categories
+
+    def video_by_category(self, category_id):
+        """Return videos from a specific category."""
+        return self._request("%s/%s", self.url_video_by_category,
+                             category_id)
+
+    @classmethod
+    def resolve_video_url(cls, video_id):
+        std_headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.1) Gecko/2008070208 Firefox/3.0.1',
+            'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+            'Accept': 'text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5',
+            'Accept-Language': 'en-us,en;q=0.5',
+        }
+
+        url = cls.url_video_request % str(video_id)
+
+        request = urllib2.Request(url, None, std_headers)
+        try:
+            video_webpage = urllib2.urlopen(request).read()
+        except (urllib2.URLError, httplib.HTTPException, socket.error), err:
+            return None
+
+        # "t" param
+        mobj = re.search(r', "t": "([^"]+)"', video_webpage)
+        if mobj is None:
+            return None
+        video_real_url = 'http://youtube.com/get_video?video_id=%s&t=%s' % (video_id, mobj.group(1))
+
+        return video_real_url
+
+class InfoVideo(object):
+    """Store information of a YouTube video."""
+
+    def __init__(self, id, title):
+        self.id = id
+        self.title = title
+        self.links = None
+        self.rating = None
+        self.authors = None
+        self.view_count = 0
+        self.thumbnails = None
+        self.description = ""
+        self.duration = 0
+
+    def get_small_thumbnail(self):
+        """Get the smallest thumb in size."""
+        if not self.thumbnails:
+            return None
+        else:
+            sizes = self.thumbnails.keys()
+            sizes.sort()
+            return self.thumbnails[sizes[0]][0]
+
+    def get_large_thumbnail(self):
+        """Get the largest thumb in size."""
+        if not self.thumbnails:
+            return None
+        else:
+            sizes = self.thumbnails.keys()
+            sizes.sort()
+            return self.thumbnails[sizes[-1]][0]
+
+
+class InfoVideoAuthor(object):
+    """Store information of a YouTube video author."""
+
+    def __init__(self, name, uri=None, email=None):
+        self.name = name
+        self.uri = uri
+        self.email = email
+
+
+class InfoVideoRating(object):
+    """Store information of a YouTube video rating."""
+
+    def __init__(self, min=0, max=0, avg=0, num=0):
+        self.min = min
+        self.max = max
+        self.avg = avg
+        self.num = num
+
+
+def get_namespaces(xml):
+    space = {}
+    ir = re.compile("<feed ([^>]+)")
+    for c in ir.findall(xml)[0].split(' '):
+        name, value = c.split("=")
+        name = name.strip()
+        value = value.strip()[1:-1]
+        space[name] = value
+
+    return space
+
+
+def parse_youtube_xml(xml):
+    """Parse an entry from youtube feed.
+
+    Parse youtube feed and return summary and entries.
+    """
+    space = get_namespaces(xml)
+    tree = ElementTree.fromstring(xml)
+
+    summary = {}
+    summary['total'] = int(tree.find("{%s}totalResults" % space['xmlns:openSearch']).text)
+    summary['index'] = int(tree.find("{%s}startIndex" % space['xmlns:openSearch']).text)
+    summary['items'] = int(tree.find("{%s}itemsPerPage" % space['xmlns:openSearch']).text)
+    summary['links'] = {}
+
+    for child in tree.findall("{%s}link" % space['xmlns']):
+        rel = child.get("rel")
+        if rel not in summary['links']:
+            summary['links'][rel] = child.get("href")
+
+    lst = []
+    for child in tree.findall("{%s}entry" % space['xmlns']):
+        id = child.find("{%s}id" % space['xmlns'])
+        title = child.find("{%s}title" % space['xmlns'])
+
+        info = InfoVideo(id=id.text.split("/")[-1],
+                         title=title.text)
+
+        info.updated = child.find('{%s}updated' % space['xmlns']).text
+        info.published = child.find('{%s}published' % space['xmlns']).text
+
+        info.links = {}
+        for c in child.findall("{%s}link" % space['xmlns']):
+            info.links[c.get("rel")] = ("", c.get("href"))
+
+        info.authors = []
+        for c in child.findall("{%s}author" % space['xmlns']):
+            uri = c.find("{%s}uri" % space['xmlns'])
+            name = c.find("{%s}name" % space['xmlns'])
+
+            author = InfoVideoAuthor(name=name.text,
+                                     uri=uri.text)
+            info.authors.append(author)
+
+        # rating
+        tr = child.find("{%s}rating" % space['xmlns:gd'])
+        info.rating = InfoVideoRating()
+        if tr is not None:
+            info.rating.min = float(tr.get("min", 0))
+            info.rating.max = float(tr.get("max", 0))
+            info.rating.avg = float(tr.get("average", 0))
+            info.rating.num = float(tr.get("numRaters", 0))
+
+        # viewcount
+        tr = child.find("{%s}statistics" % space['xmlns:yt'])
+        if tr is None:
+            info.view_count = 0
+        else:
+            info.view_count = int(tr.get("viewCount", 0))
+
+        # video thumbnails
+        info.thumbnails = {}
+        for tr in child.findall(".//{%s}group" % space['xmlns:media']):
+            for description in tr.findall("{%s}description" % space['xmlns:media']):
+                info.description = description.text
+                if info.description:
+                    info.description = info.description.replace("\n", "<br>")
+                else:
+                    info.description = ""
+            for content in tr.findall('{%s}content' % space['xmlns:media']):
+                info.duration = int(content.get('duration', 0))
+
+
+            for c in tr.findall("{%s}thumbnail" % space['xmlns:media']):
+                url = c.get("url")
+                size = (int(c.get("width")), int(c.get("height")))
+                if size not in info.thumbnails:
+                    info.thumbnails[size] = [url,]
+                else:
+                    info.thumbnails[size].append(url)
+
+        lst.append(info)
+
+    return (summary, lst)
+
+class MainScreen:
+    def __init__(self):
+        self.p = hildon.Program.get_instance()
+        gtk.set_application_name("zoutube")
+        self.w = hildon.StackableWindow()
+        self.pan = hildon.PannableArea()
+        box = gtk.VBox()
+        self.w.connect("delete-event", lambda x, y: gtk.main_quit())
+        b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
+            hildon.BUTTON_ARRANGEMENT_VERTICAL,
+            title = "Recently Featured")
+        b.connect("clicked", self.on_button_clicked, "recentlyfeatured")
+        box.pack_start(b, False, False, 0)
+        b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
+            hildon.BUTTON_ARRANGEMENT_VERTICAL,
+            title = "Most Viewed")
+        b.connect("clicked", self.on_button_clicked, "mostviewed")
+        box.pack_start(b, False, False, 0)
+        b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
+            hildon.BUTTON_ARRANGEMENT_VERTICAL,
+            title = "Most Recent")
+        b.connect("clicked", self.on_button_clicked, "mostrecent")
+        box.pack_start(b, False, False, 0)
+        b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
+            hildon.BUTTON_ARRANGEMENT_VERTICAL,
+            title = "Top Rated")
+        b.connect("clicked", self.on_button_clicked, "toprated")
+        box.pack_start(b, False, False, 0)
+        self.box = box
+        self.y = YouTube()
+        Thread(target=self.retrieve_categories).start()
+        self.pan.add_with_viewport(box)
+        self.w.add(self.pan)
+        self.w.show_all()
+    
+    def retrieve_categories(self):
+        c = self.y.category_list()
+        gobject.idle_add(self.show_categories, c)
+
+    def show_categories(self, c):
+        for k in c:
+            v = c[k]
+            b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
+                hildon.BUTTON_ARRANGEMENT_VERTICAL,
+                title = v)
+            b.connect("clicked", self.on_button_clicked, k)
+            self.box.pack_start(b, False, False, 0)
+        self.box.show_all()
+
+    def on_button_clicked(self, button, data):
+        videolist = YoutubeUI()
+        Thread(target=self.retrieve_video_list, args=(data, videolist)).start()
+    
+    def retrieve_video_list(self, data, videolist):
+        if data == "toprated":
+            videos = self.y.top_rated()
+        elif data == "mostviewed":
+            videos = self.y.most_viewed()        
+        elif data == "mostrecent":
+            videos = self.y.most_recent()
+        elif data == "recentlyfeatured":
+            videos = self.y.recently_featured()
+        else:
+            videos = self.y.video_by_category(data)
+        gobject.idle_add(videolist.set_videos, videos)
+
+class YoutubeUI:
+    def __init__(self):
+        self.w = hildon.StackableWindow()
+        self.pan = hildon.PannableArea()
+        self.box = gtk.VBox()
+        self.buttons = []
+        self.pan.add_with_viewport(self.box)
+        self.w.add(self.pan)
+        self.w.show_all()
+
+    def set_videos(self, videos):
+        for v in videos:
+            b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
+                hildon.BUTTON_ARRANGEMENT_VERTICAL,
+                title = v.title)
+            b.connect("clicked", self.on_button_clicked, v)
+            self.buttons.append(b)
+            self.box.pack_start(b, False, False, 0)
+        self.box.show_all()
+
+    def on_button_clicked(self, button, v):
+        # display video
+        video = YoutubePlayer(v)
+
+class YoutubePlayer:
+
+    def __init__(self, video):
+        # hildon has one program instance per app, so get instance
+        self.p = hildon.Program.get_instance()
+        # set name of application: this shows in titlebar
+        # stackable window in case we want more windows in future in app
+        self.w = hildon.StackableWindow()
+        box = gtk.VBox()
+        self.video_widget = VideoWidget()
+        # video widget we want to expand to size
+        box.pack_start(self.video_widget, True, True, 0)
+        # a button finger height to play/pause 
+        self.button = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT,
+            hildon.BUTTON_ARRANGEMENT_VERTICAL, title="Pause")
+        self.button.connect_after("clicked", self.on_button_clicked)
+        # don't want button to expand or fill, just stay finger height
+        box.pack_start(self.button, False, False, 0)
+        self.w.add(box)
+        self.w.connect("delete-event", lambda x, y: self.stop_streaming())
+        self.p.add_window(self.w)
+        self.w.show_all()
+        self.video = video
+        self.start_streaming()
+
+
+    def start_streaming(self):
+        # we use ximagesink solely for screenshotting ability
+        # less cpu usage would happen with videotestsrc ! xvimagesink
+        v = self.video        
+        url = YouTube.resolve_video_url(v.id)
+        self.pipeline = \
+            gst.parse_launch("playbin2 uri=%s" % (url,))
+        bus = self.pipeline.get_bus()
+        # need to connect to sync message handler so we get the sink to be
+        # embedded at the right time and not have a temporary new window
+        bus.enable_sync_message_emission()
+        bus.add_signal_watch()
+        bus.connect("sync-message::element", self.on_sync_message)
+        bus.connect("message", self.on_message)
+        self.pipeline.set_state(gst.STATE_PLAYING)
+
+    def on_sync_message(self, bus, message):
+        if message.structure is None:
+            return
+        if message.structure.get_name() == 'prepare-xwindow-id':
+            # all this is needed to sync with the X server before giving the
+            # x id to the sink
+            gtk.gdk.threads_enter()
+            gtk.gdk.display_get_default().sync()
+            self.video_widget.set_sink(message.src)
+            message.src.set_property("force-aspect-ratio", True)
+            gtk.gdk.threads_leave()
+
+    def on_message(self, bus, message):
+        if message.type == gst.MESSAGE_ERROR:
+            err, debug = message.parse_error()
+            hildon.hildon_banner_show_information(self.w, '', 
+                "Error: %s" % err)
+
+    def on_button_clicked(self, widget):
+        success, state, pending = self.pipeline.get_state(1)
+        # do not listen if in middle of state change
+        if not pending:
+            if state == gst.STATE_PLAYING:
+                self.pipeline.set_state(gst.STATE_PAUSED)
+                self.button.set_label("Play")
+            else:
+                self.pipeline.set_state(gst.STATE_PLAYING)
+                self.button.set_label("Pause")
+
+    def stop_streaming(self):
+        self.pipeline.set_state(gst.STATE_NULL)
+
+if __name__ == "__main__":
+    ui = MainScreen()
+    gtk.main()

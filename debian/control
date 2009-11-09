@@ -1,0 +1,26 @@
+Source: zoutube
+Section: user/network
+Priority: extra
+Maintainer: Zaheer Abbas Merali <zaheermerali@gmail.com>
+Build-Depends: debhelper (>= 4)
+Standards-Version: 4
+
+Package: zoutube
+Architecture: any
+Depends: python-gst0.10, gstreamer0.10-flv, gstreamer0.10-ffmpeg, python-gtk2
+Description: Browse and watch Youtube videos
+  A simple front end to Youtube.
+XB-Maemo-Icon-26:
+  iVBORw0KGgoAAAANSUhEUgAAABoAAAAaCAYAAACpSkzOAAAAAXNSR0IArs4c
+  6QAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0
+  SU1FB9kLCBc5LG60qhUAAAAZdEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIEdJ
+  TVBXgQ4XAAABkElEQVRIx+2VIUhzYRSGn6siiohFJohzICyI4GBhxWSZYBgG
+  TVrEbDbI3yyCQcuayAaC3WZaEzbGRMM1uWq6SZyG3cdw/fGHGfyL6b5wOIcT
+  vue8Hx/fCVT5BQ3xS0pBKSgFfapeh/Hx72NsbLA3MwPv71+gn34OvrzA7i68
+  vQ3Gzs73/c+zRwCCIKBWqxFFEVEUUS6XabfbFAoF8vk8mUyG4+Nj/hSLsLUF
+  Dw+wvAzVKpyfw94erK3B1BScnUG5DLkcdLv/TKnGcazq/v6+qrlcTtWjoyO7
+  3a69Xs/NzU2t1/XuTkGr1SQ/Pib54EBnZ3VjQ6+u9PBQ7+/19VXVob+Otre3
+  qVQqPD8/UyqVaLVaRFFEv9+n0WjQbDZheBj6fZieTq5lZQWy2WTi9XVYXYXb
+  WxgZgetrODmBIPhypBqGoa1WyzAMVW2328ZxbBzHdjodn56e9OJCJyd1fj5x
+  sbSkCwtJPTeni4tJDVosajarvZ6qwX+tiZsbOD39+SudmIDLSxgdJUj3UQpK
+  QSloQB8ViQRkJjC35AAAAABJRU5ErkJggg==
