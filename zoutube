@@ -148,13 +148,37 @@ class YouTube(object):
         except (urllib2.URLError, httplib.HTTPException, socket.error), err:
             return None
 
-        # "t" param
-        mobj = re.search(r', "t": "([^"]+)"', video_webpage)
-        if mobj is None:
-            return None
-        video_real_url = 'http://youtube.com/get_video?video_id=%s&t=%s' % (video_id, mobj.group(1))
+        # Try to find the best video format available for this video
+        # (http://forum.videohelp.com/topic336882-1800.html#1912972)
+        r3 = re.compile('.*"fmt_map"\:\s+"([^"]+)".*').search(video_webpage)
+        if r3:
+            formats_available = urllib.unquote(r3.group(1)).split(',')
+        else:
+            formats_available = []
 
-        return video_real_url
+        # This is the proritized list of formats that gPodder will
+        # use, depending on what is available from top to bottom.
+        format_priorities = [
+                '22/2000000/9/0/115', # 1280x720
+                '35/640000/9/0/115',  # 640x360
+                '18/512000/9/0/115',  # 480x270
+                '34/0/9/0/115',       # 320x180
+                '5/0/7/0/0',          # 320x180
+        ]
+
+        fmt_id = 5
+        available = []
+        for wanted in format_priorities:
+            if wanted in formats_available:
+                format, rest_ = wanted.split('/', 1)
+                fmt_id = int(format)
+                available.append(fmt_id)
+  
+        r2 = re.compile('.*"t"\:\s+"([^"]+)".*').search(page)
+        if r2:
+            video_real_url = 'http://www.youtube.com/get_video?video_id=' + vid + '&t=' + r2.group(1)
+            return video_real_url, available
+        return None, None
 
 class InfoVideo(object):
     """Store information of a YouTube video."""
@@ -424,7 +448,8 @@ class YoutubePlayer:
         # we use ximagesink solely for screenshotting ability
         # less cpu usage would happen with videotestsrc ! xvimagesink
         v = self.video        
-        url = YouTube.resolve_video_url(v.id)
+        url, formats = YouTube.resolve_video_url(v.id)
+        url = "%s&fmt=%d" % (url, formats[0])
         self.pipeline = \
             gst.parse_launch("playbin2 uri=%s" % (url,))
         bus = self.pipeline.get_bus()
