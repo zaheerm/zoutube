@@ -451,7 +451,10 @@ class YoutubePlayer:
         v = self.video        
         url, formats = YouTube.resolve_video_url(v.id)
         print "url: %r formats: %r" % (url, formats)
-        url = "%s&fmt=%d" % (url, formats[0])
+        for fmt in formats:
+            if fmt != 22 and fmt != 35:
+                break
+        url = "%s&fmt=%d" % (url, fmt)
         self.pipeline = \
             gst.parse_launch("playbin2 uri=%s" % (url,))
         bus = self.pipeline.get_bus()
