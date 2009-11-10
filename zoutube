@@ -55,6 +55,7 @@ class VideoWidget(gtk.DrawingArea):
         gtk.DrawingArea.__init__(self)
         self.imagesink = None
         self.unset_flags(gtk.DOUBLE_BUFFERED)
+        self.add_events(gtk.gdk.BUTTON_PRESS_MASK)
 
     def do_expose_event(self, event):
         if self.imagesink:
@@ -363,6 +364,8 @@ class MainScreen:
         self.pan.add_with_viewport(box)
         self.w.add(self.pan)
         self.w.show_all()
+        hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
+        self.p.add_window(self.w)
     
     def retrieve_categories(self):
         c = self.y.category_list()
@@ -377,6 +380,7 @@ class MainScreen:
             b.connect("clicked", self.on_button_clicked, k)
             self.box.pack_start(b, False, False, 0)
         self.box.show_all()
+        hildon.hildon_gtk_window_set_progress_indicator(self.w, 0)
 
     def on_button_clicked(self, button, data):
         videolist = YoutubeUI()
@@ -397,6 +401,9 @@ class MainScreen:
 
 class YoutubeUI:
     def __init__(self):
+        # hildon has one program instance per app, so get instance
+        self.p = hildon.Program.get_instance()
+
         self.w = hildon.StackableWindow()
         self.pan = hildon.PannableArea()
         self.box = gtk.VBox()
@@ -404,6 +411,8 @@ class YoutubeUI:
         self.pan.add_with_viewport(self.box)
         self.w.add(self.pan)
         self.w.show_all()
+        hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
+        self.p.add_window(self.w)
 
     def set_videos(self, videos):
         for v in videos:
@@ -414,6 +423,8 @@ class YoutubeUI:
             self.buttons.append(b)
             self.box.pack_start(b, False, False, 0)
         self.box.show_all()
+        hildon.hildon_gtk_window_set_progress_indicator(self.w, 0)
+
 
     def on_button_clicked(self, button, v):
         # display video
@@ -431,19 +442,37 @@ class YoutubePlayer:
         self.video_widget = VideoWidget()
         # video widget we want to expand to size
         box.pack_start(self.video_widget, True, True, 0)
-        # a button finger height to play/pause 
+        # handle button presses
+        self.video_widget.connect("button-press-event", self.button_pressed)
+        # a button finger height to play/pause
+        self.hbox = gtk.HBox()
+        self.seekbar = hildon.GtkHScale()
+        self.hbox.pack_start(self.seekbar, True, True, 0)
         self.button = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT,
             hildon.BUTTON_ARRANGEMENT_VERTICAL, title="Pause")
         self.button.connect_after("clicked", self.on_button_clicked)
         # don't want button to expand or fill, just stay finger height
-        box.pack_start(self.button, False, False, 0)
+        self.hbox.pack_start(self.button, False, False, 0)
+        box.pack_start(self.hbox, False, False, 0)
         self.w.add(box)
         self.w.connect("delete-event", lambda x, y: self.stop_streaming())
         self.p.add_window(self.w)
         self.w.show_all()
+        self.is_fullscreen = True
+        self.w.fullscreen()
         self.video = video
+        hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.start_streaming()
 
+    def button_pressed(self, w, event):
+        if event.type == gtk.gdk._2BUTTON_PRESS:
+            if self.is_fullscreen:
+                self.w.unfullscreen()
+                self.is_fullscreen = False
+            else:
+                self.w.fullscreen()
+                self.is_fullscreen = True
+        return True
 
     def start_streaming(self):
         # we use ximagesink solely for screenshotting ability
@@ -455,6 +484,7 @@ class YoutubePlayer:
             if fmt != 22 and fmt != 35:
                 break
         url = "%s&fmt=%d" % (url, fmt)
+        print "real url: %r" % (url,)
         self.pipeline = \
             gst.parse_launch("playbin2 uri=%s" % (url,))
         bus = self.pipeline.get_bus()
@@ -483,6 +513,13 @@ class YoutubePlayer:
             err, debug = message.parse_error()
             hildon.hildon_banner_show_information(self.w, '', 
                 "Error: %s" % err)
+        elif message.type == gst.MESSAGE_STATE_CHANGED:
+            if message.src == self.pipeline:
+                old, new, pending = message.parse_state_changed()
+                if (old, new, pending) == (gst.STATE_PAUSED, gst.STATE_PLAYING,
+                    gst.STATE_VOID_PENDING):
+                     hildon.hildon_gtk_window_set_progress_indicator(self.w, 0)
+                     
 
     def on_button_clicked(self, widget):
         success, state, pending = self.pipeline.get_state(1)
