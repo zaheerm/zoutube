@@ -447,7 +447,7 @@ class YoutubePlayer:
         # a button finger height to play/pause
         self.hbox = gtk.HBox()
         self.seekbar = hildon.GtkHScale()
-        self.hbox.pack_start(self.seekbar, True, True, 0)
+        #self.hbox.pack_start(self.seekbar, True, True, 0)
         self.button = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT,
             hildon.BUTTON_ARRANGEMENT_VERTICAL, title="Pause")
         self.button.connect_after("clicked", self.on_button_clicked)
