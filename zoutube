@@ -29,6 +29,7 @@
 
 import re
 import httplib
+import urllib
 import urllib2
 import socket
 import gobject
@@ -174,9 +175,9 @@ class YouTube(object):
                 fmt_id = int(format)
                 available.append(fmt_id)
   
-        r2 = re.compile('.*"t"\:\s+"([^"]+)".*').search(page)
+        r2 = re.compile('.*"t"\:\s+"([^"]+)".*').search(video_webpage)
         if r2:
-            video_real_url = 'http://www.youtube.com/get_video?video_id=' + vid + '&t=' + r2.group(1)
+            video_real_url = 'http://www.youtube.com/get_video?video_id=' + video_id + '&t=' + r2.group(1)
             return video_real_url, available
         return None, None
 
@@ -449,6 +450,7 @@ class YoutubePlayer:
         # less cpu usage would happen with videotestsrc ! xvimagesink
         v = self.video        
         url, formats = YouTube.resolve_video_url(v.id)
+        print "url: %r formats: %r" % (url, formats)
         url = "%s&fmt=%d" % (url, formats[0])
         self.pipeline = \
             gst.parse_launch("playbin2 uri=%s" % (url,))
