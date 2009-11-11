@@ -506,11 +506,13 @@ class YoutubePlayer:
         # less cpu usage would happen with videotestsrc ! xvimagesink
         v = self.video        
         url, formats = YouTube.resolve_video_url(v.id)
+        self.url = url
+        self.formats = formats
         self.menu = hildon.AppMenu()
         for fmt in formats:
             if fmt != 22 and fmt != 35:
                 b = gtk.Button(YouTube.format_to_string(fmt))
-                b.connect_after("clicked", self.on_change_url, "%s&fmt=%d" % (url, fmt))
+                b.connect_after("clicked", self.on_change_url, url, fmt)
                 self.menu.append(b)
         self.menu.show_all()
         self.w.set_app_menu(self.menu)
@@ -518,11 +520,24 @@ class YoutubePlayer:
         for fmt in formats:
             if fmt != 22 and fmt != 35:
                 break
+        self.current_format = fmt
         url = "%s&fmt=%d" % (url, fmt)
         self.play_url(url)
 
-    def on_change_url(self, button, url):
+    def try_lower_quality(self):
+        found_current = False
+        for fmt in self.formats:
+            if fmt != 22 and fmt != 35 and fmt != self.current_format:
+                if found_current:
+                    self.on_change_url(None, self.url, fmt)
+                    break
+            elif fmt == self.current_format:
+                found_current = True
+
+    def on_change_url(self, button, url, fmt):
+        url = "%s&fmt=%d" % (url, fmt)
         self.stop_streaming()
+        self.current_fmt = fmt
         self.play_url(url)
 
     def play_url(self, url):
@@ -554,7 +569,8 @@ class YoutubePlayer:
         if message.type == gst.MESSAGE_ERROR:
             err, debug = message.parse_error()
             hildon.hildon_banner_show_information(self.w, '', 
-                "Error: %s" % err)
+                "Error: %s Trying lower quality format" % err)
+            self.try_lower_quality()
         elif message.type == gst.MESSAGE_STATE_CHANGED:
             if message.src == self.pipeline:
                 old, new, pending = message.parse_state_changed()
