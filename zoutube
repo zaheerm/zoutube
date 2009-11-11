@@ -40,6 +40,7 @@ import hildon
 import gst
 from threading import Thread
 import dbus
+import osso
 
 try:
     from xml.etree import cElementTree as ElementTree
@@ -381,6 +382,7 @@ class MainScreen:
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.p.add_window(self.w)
         self.searchbox = None
+        self.ctx = osso.context.Context("zoutube", "0.1")
     
     def key_pressed(self, widget, event):
         if not self.searchbox:
@@ -399,7 +401,7 @@ class MainScreen:
         self.mainvbox.remove(self.searchbox)
         self.searchbox = None
         if searchtext:
-            videolist = YoutubeUI()
+            videolist = YoutubeUI(self.ctx)
             Thread(target=self.search_video_list, args=(searchtext, videolist)).start()
                     
     def retrieve_categories(self):
@@ -418,7 +420,7 @@ class MainScreen:
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 0)
 
     def on_button_clicked(self, button, data):
-        videolist = YoutubeUI()
+        videolist = YoutubeUI(self.ctx)
         Thread(target=self.retrieve_video_list, args=(data, videolist)).start()
     
     def retrieve_video_list(self, data, videolist):
@@ -439,10 +441,10 @@ class MainScreen:
         gobject.idle_add(videolist.set_videos, videos)
 
 class YoutubeUI:
-    def __init__(self):
+    def __init__(self, ctx):
         # hildon has one program instance per app, so get instance
         self.p = hildon.Program.get_instance()
-
+        self.ctx = ctx
         self.w = hildon.StackableWindow()
         self.pan = hildon.PannableArea()
         self.box = gtk.VBox()
@@ -483,11 +485,11 @@ class YoutubeUI:
 
     def on_button_clicked(self, button, v):
         # display video
-        video = YoutubePlayer(v)
+        video = YoutubePlayer(v, self.ctx)
 
 class YoutubePlayer:
 
-    def __init__(self, video):
+    def __init__(self, video, ctx):
         # hildon has one program instance per app, so get instance
         self.p = hildon.Program.get_instance()
         # set name of application: this shows in titlebar
@@ -517,7 +519,12 @@ class YoutubePlayer:
         self.w.fullscreen()
         self.video = video
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
+        self.ctx = ctx
         self.start_streaming()
+
+    def heartbeat(self):
+        self.ds.display_state_on()
+        self.ds.display_blanking_pause()
 
     def button_pressed(self, w, event):
         if event.type == gtk.gdk._2BUTTON_PRESS:
@@ -569,6 +576,11 @@ class YoutubePlayer:
         self.play_url(url)
 
     def play_url(self, url):
+        # need to do the display state stuff to stop the screen being dimmed on us
+        self.ds = osso.DeviceState(self.ctx)
+        self.heartbeat()
+        self.timer = gobject.timeout_add_seconds(30, self.heartbeat)
+
         print "real url: %r" % (url,)
         self.pipeline = \
             gst.parse_launch("playbin2 uri=%s" % (url,))
@@ -620,6 +632,7 @@ class YoutubePlayer:
 
     def stop_streaming(self):
         self.pipeline.set_state(gst.STATE_NULL)
+        gobject.source_remove(self.timer)
 
 if __name__ == "__main__":
     ui = MainScreen()
