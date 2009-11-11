@@ -346,6 +346,7 @@ class MainScreen:
         self.p = hildon.Program.get_instance()
         gtk.set_application_name("zoutube")
         self.w = hildon.StackableWindow()
+        self.mainvbox = gtk.VBox()
         self.pan = hildon.PannableArea()
         box = gtk.VBox()
         self.w.connect("delete-event", lambda x, y: gtk.main_quit())
@@ -373,11 +374,34 @@ class MainScreen:
         self.y = YouTube()
         Thread(target=self.retrieve_categories).start()
         self.pan.add_with_viewport(box)
-        self.w.add(self.pan)
+        self.mainvbox.pack_start(self.pan, True, True, 0)
+        self.w.add(self.mainvbox)
+        self.w.connect("key-press-event", self.key_pressed)
         self.w.show_all()
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.p.add_window(self.w)
+        self.searchbox = None
     
+    def key_pressed(self, widget, event):
+        if not self.searchbox:
+            self.searchbox = hildon.Entry(gtk.HILDON_SIZE_FINGER_HEIGHT)
+            self.searchbox.set_property('hildon-input-mode',
+                gtk.HILDON_GTK_INPUT_MODE_FULL)
+            self.mainvbox.pack_start(self.searchbox, False, False, 0)
+            self.mainvbox.show_all()
+            self.searchbox.grab_focus()
+            self.searchbox.emit("key-press-event", event)
+            self.searchbox.connect("activate", self.search_activated)
+        return False
+
+    def search_activated(self, widget):
+        searchtext = widget.props.text
+        self.mainvbox.remove(self.searchbox)
+        self.searchbox = None
+        if searchtext:
+            videolist = YoutubeUI()
+            Thread(target=self.search_video_list, args=(searchtext, videolist)).start()
+                    
     def retrieve_categories(self):
         c = self.y.category_list()
         gobject.idle_add(self.show_categories, c)
@@ -408,6 +432,10 @@ class MainScreen:
             videos = self.y.recently_featured()
         else:
             videos = self.y.video_by_category(data)
+        gobject.idle_add(videolist.set_videos, videos)
+
+    def search_video_list(self, searchtext, videolist):
+        videos = self.y.search(searchtext)
         gobject.idle_add(videolist.set_videos, videos)
 
 class YoutubeUI:
