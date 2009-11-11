@@ -39,6 +39,7 @@ gtk.gdk.threads_init()
 import hildon
 import gst
 from threading import Thread
+import dbus
 
 try:
     from xml.etree import cElementTree as ElementTree
@@ -132,6 +133,16 @@ class YouTube(object):
         """Return videos from a specific category."""
         return self._request("%s/%s", self.url_video_by_category,
                              category_id)
+
+    @classmethod
+    def format_to_string(cls, fmt_id):
+        formats = {
+            22: "HD Quality",
+            35: "High Quality",
+            34: "Reasonable Quality",
+            18: "Good Quality",
+            5: "Bad Quality" }
+        return formats[fmt_id]
 
     @classmethod
     def resolve_video_url(cls, video_id):
@@ -419,12 +430,28 @@ class YoutubeUI:
             b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
                 hildon.BUTTON_ARRANGEMENT_VERTICAL,
                 title = v.title)
+            menu = self.create_popup_menu(v)
+            b.tap_and_hold_setup(menu, None)
             b.connect("clicked", self.on_button_clicked, v)
             self.buttons.append(b)
             self.box.pack_start(b, False, False, 0)
         self.box.show_all()
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 0)
 
+    def create_popup_menu(self, v):
+        menu = gtk.Menu()
+        download = gtk.MenuItem("Open in browser")
+        download.connect("activate", self.open_browser, v)
+        menu.append(download)
+        menu.show_all()
+        return menu
+
+    def open_browser(self, widget, v):
+        url = YouTube.url_video_request % str(v.id)
+        bus = dbus.SessionBus()
+        remote_object = bus.get_object("com.nokia.osso_browser", 
+            "/com/nokia/osso_browser/request")
+        remote_object.open_new_window(url, dbus_interface = "com.nokia.osso_browser")
 
     def on_button_clicked(self, button, v):
         # display video
@@ -479,11 +506,26 @@ class YoutubePlayer:
         # less cpu usage would happen with videotestsrc ! xvimagesink
         v = self.video        
         url, formats = YouTube.resolve_video_url(v.id)
+        self.menu = hildon.AppMenu()
+        for fmt in formats:
+            if fmt != 22 and fmt != 35:
+                b = gtk.Button(YouTube.format_to_string(fmt))
+                b.connect_after("clicked", self.on_change_url, "%s&fmt=%d" % (url, fmt))
+                self.menu.append(b)
+        self.menu.show_all()
+        self.w.set_app_menu(self.menu)
         print "url: %r formats: %r" % (url, formats)
         for fmt in formats:
             if fmt != 22 and fmt != 35:
                 break
         url = "%s&fmt=%d" % (url, fmt)
+        self.play_url(url)
+
+    def on_change_url(self, button, url):
+        self.stop_streaming()
+        self.play_url(url)
+
+    def play_url(self, url):
         print "real url: %r" % (url,)
         self.pipeline = \
             gst.parse_launch("playbin2 uri=%s" % (url,))
