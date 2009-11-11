@@ -2,7 +2,7 @@ zoutube (0.1-6) unstable; urgency=low
 
   * Move to lower quality format if gstreamer error occurs
 
-  -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Tue, 10 Nov 2009 14:35:47 +0000
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Tue, 10 Nov 2009 14:35:47 +0000
 zoutube (0.1-5) unstable; urgency=low
 
   * Add long tap option for opening at browser
