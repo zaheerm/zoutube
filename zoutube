@@ -391,17 +391,6 @@ class MainScreen:
         self.searchbox = None
         self.ctx = osso.context.Context("zoutube", "0.1")
     
-    def listen_for_orientation(self):
-        self.system_bus = dbus.Bus.get_system()
-
-        def handler(orientation, stand=None, face=None, x=None, y=None, z=None):
-            print "orientation changed to %r" % (orientation,)
-
-        self.system_bus.add_signal_receiver(handler,
-            signal_name=self.MCE_SIGNAL_NAME,
-            dbus_interface=self.MCE_SIGNAL_IFACE,
-            path=self.MCE_SIGNAL_PATH)
-
     def key_pressed(self, widget, event):
         if not self.searchbox:
             self.searchbox = hildon.Entry(gtk.HILDON_SIZE_FINGER_HEIGHT)
