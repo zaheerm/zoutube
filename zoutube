@@ -537,8 +537,8 @@ class YoutubePlayer:
         self.w.connect("delete-event", lambda x, y: self.stop_streaming())
         self.p.add_window(self.w)
         self.w.show_all()
-        self.is_fullscreen = True
-        self.w.fullscreen()
+        self.is_fullscreen = False
+        #self.w.fullscreen()
         self.video = video
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.ctx = ctx
@@ -662,6 +662,9 @@ class YoutubePlayer:
         self.url = url
         self.formats = formats
         self.menu = hildon.AppMenu()
+        b = gtk.Button("Download")
+        b.connect_after("clicked", self.download)
+        self.menu.append(b)
         for fmt in formats:
             if fmt != 22 and fmt != 35 and fmt != 34:
                 b = gtk.Button(YouTube.format_to_string(fmt))
@@ -690,8 +693,15 @@ class YoutubePlayer:
     def on_change_url(self, button, url, fmt):
         url = "%s&fmt=%d" % (url, fmt)
         self.stop_streaming()
-        self.current_fmt = fmt
+        self.current_format = fmt
         self.play_url(url)
+
+    def download(self, button):
+        url = "%s&fmt=%d" % (self.url, self.current_format)
+        bus = dbus.SessionBus()
+        remote_object = bus.get_object("com.nokia.osso_browser", 
+            "/com/nokia/osso_browser/request")
+        remote_object.open_new_window(url, dbus_interface = "com.nokia.osso_browser")
 
     def play_url(self, url):
         # need to do the display state stuff to stop the screen being dimmed on us
