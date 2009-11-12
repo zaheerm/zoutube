@@ -663,7 +663,7 @@ class YoutubePlayer:
         self.formats = formats
         self.menu = hildon.AppMenu()
         for fmt in formats:
-            if fmt != 22 and fmt != 35:
+            if fmt != 22 and fmt != 35 and fmt != 34:
                 b = gtk.Button(YouTube.format_to_string(fmt))
                 b.connect_after("clicked", self.on_change_url, url, fmt)
                 self.menu.append(b)
@@ -671,7 +671,7 @@ class YoutubePlayer:
         self.w.set_app_menu(self.menu)
         print "url: %r formats: %r" % (url, formats)
         for fmt in formats:
-            if fmt != 22 and fmt != 35:
+            if fmt != 22 and fmt != 35 and fmt != 34:
                 break
         self.current_format = fmt
         url = "%s&fmt=%d" % (url, fmt)
