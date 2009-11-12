@@ -42,6 +42,9 @@ from threading import Thread
 import dbus
 import osso
 
+from portrait import FremantleRotation
+
+rotation = None
 try:
     from xml.etree import cElementTree as ElementTree
 except ImportError:
@@ -343,10 +346,14 @@ def parse_youtube_xml(xml):
     return (summary, lst)
 
 class MainScreen:
+
     def __init__(self):
+        global rotation
         self.p = hildon.Program.get_instance()
         gtk.set_application_name("zoutube")
         self.w = hildon.StackableWindow()
+        rotation = FremantleRotation("zoutube", main_window=self.w,
+            version="0.1")
         self.mainvbox = gtk.VBox()
         self.pan = hildon.PannableArea()
         box = gtk.VBox()
@@ -384,6 +391,17 @@ class MainScreen:
         self.searchbox = None
         self.ctx = osso.context.Context("zoutube", "0.1")
     
+    def listen_for_orientation(self):
+        self.system_bus = dbus.Bus.get_system()
+
+        def handler(orientation, stand=None, face=None, x=None, y=None, z=None):
+            print "orientation changed to %r" % (orientation,)
+
+        self.system_bus.add_signal_receiver(handler,
+            signal_name=self.MCE_SIGNAL_NAME,
+            dbus_interface=self.MCE_SIGNAL_IFACE,
+            path=self.MCE_SIGNAL_PATH)
+
     def key_pressed(self, widget, event):
         if not self.searchbox:
             self.searchbox = hildon.Entry(gtk.HILDON_SIZE_FINGER_HEIGHT)
@@ -491,6 +509,7 @@ class YoutubePlayer:
     UPDATE_INTERVAL = 500
 
     def __init__(self, video, ctx):
+        global rotation
         # position and duration values
         self.p_position = gst.CLOCK_TIME_NONE
         self.p_duration = gst.CLOCK_TIME_NONE
@@ -534,9 +553,10 @@ class YoutubePlayer:
         self.hbox.pack_start(self.seekbar, True, True, 0)
         box.pack_start(self.hbox, False, False, 0)
         self.w.add(box)
-        self.w.connect("delete-event", lambda x, y: self.stop_streaming())
+        self.w.connect("delete-event", lambda x, y: self.on_delete_event())
         self.p.add_window(self.w)
         self.w.show_all()
+        rotation.set_mode(FremantleRotation.NEVER)
         self.is_fullscreen = False
         #self.w.fullscreen()
         self.video = video
@@ -766,6 +786,11 @@ class YoutubePlayer:
                 self.pipeline.set_state(gst.STATE_PLAYING)
                 self.is_playing = True
                 self.button.add(self.pause_image)
+
+    def on_delete_event(self):
+        global rotation        
+        self.stop_streaming()
+        rotation.set_mode(FremantleRotation.AUTOMATIC)
 
     def stop_streaming(self):
         self.pipeline.set_state(gst.STATE_NULL)

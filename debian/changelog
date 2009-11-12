@@ -1,3 +1,14 @@
+zoutube (0.1-9) unstable; urgency=low
+
+  * Portrait mode (autorotation support)
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Thu, 12 Nov 2009 13:58:43 +0000
+zoutube (0.1-8) unstable; urgency=low
+
+  * Non-fullscreen video by default
+  * Download menu option on player window
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Thu, 12 Nov 2009 13:36:09 +0000
 zoutube (0.1-7) unstable; urgency=low
 
   * Blacklist format 34
