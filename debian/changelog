@@ -1,3 +1,12 @@
+zoutube (0.1-7) unstable; urgency=low
+
+  * Blacklist format 34
+  * Tell screen not to dim while playing video
+  * Add seek bar (not 100% working yet)
+  * Change play/pause button to have icons
+  * Allow searching from front screen
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Thu, 12 Nov 2009 00:49:47 +0000
 zoutube (0.1-6) unstable; urgency=low
 
   * Move to lower quality format if gstreamer error occurs

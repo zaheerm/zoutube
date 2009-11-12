@@ -7,7 +7,7 @@ Standards-Version: 4
 
 Package: zoutube
 Architecture: any
-Depends: python-gst0.10, gstreamer0.10-flv, gstreamer0.10-ffmpeg, python-gtk2, python-dbus, python-hildon
+Depends: python-gst0.10, gstreamer0.10-flv, gstreamer0.10-ffmpeg, python-gtk2, python-dbus, python-hildon, python-osso
 Description: Browse and watch Youtube videos
   A simple front end to Youtube.
 XB-Maemo-Icon-26:
