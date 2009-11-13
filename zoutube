@@ -97,7 +97,7 @@ class YouTube(object):
 
     def _request(self, url, *params):
         """Return feed content of a specific url."""
-        xml = urllib2.urlopen(url % params).read()
+        xml = urllib2.urlopen(url % params, timeout=30).read()
         self.last_summary, entries = parse_youtube_xml(xml)
         return entries
 
@@ -422,8 +422,12 @@ class MainScreen:
             Thread(target=self.search_video_list, args=(searchtext, videolist)).start()
                     
     def retrieve_categories(self):
-        c = self.y.category_list()
-        gobject.idle_add(self.show_categories, c)
+        try:
+            c = self.y.category_list()
+            gobject.idle_add(self.show_categories, c)
+        except:
+            gobject.idle_add(hildon.hildon_banner_show_information, self.w, '',
+                "Could not connect to Youtube. Please check your network.")
 
     def show_categories(self, c):
         for k in c:
@@ -441,21 +445,29 @@ class MainScreen:
         Thread(target=self.retrieve_video_list, args=(data, videolist)).start()
     
     def retrieve_video_list(self, data, videolist):
-        if data == "toprated":
-            videos = self.y.top_rated()
-        elif data == "mostviewed":
-            videos = self.y.most_viewed()        
-        elif data == "mostrecent":
-            videos = self.y.most_recent()
-        elif data == "recentlyfeatured":
-            videos = self.y.recently_featured()
-        else:
-            videos = self.y.video_by_category(data)
-        gobject.idle_add(videolist.set_videos, videos)
+        try:
+            if data == "toprated":
+                videos = self.y.top_rated()
+            elif data == "mostviewed":
+                videos = self.y.most_viewed()        
+            elif data == "mostrecent":
+                videos = self.y.most_recent()
+            elif data == "recentlyfeatured":
+                videos = self.y.recently_featured()
+            else:
+                videos = self.y.video_by_category(data)
+            gobject.idle_add(videolist.set_videos, videos)
+        except:
+            gobject.idle_add(hildon.hildon_banner_show_information, self.w, '',
+                "Could not connect to Youtube. Please check your network.")
 
     def search_video_list(self, searchtext, videolist):
-        videos = self.y.search(searchtext)
-        gobject.idle_add(videolist.set_videos, videos)
+        try:
+            videos = self.y.search(searchtext)
+            gobject.idle_add(videolist.set_videos, videos)
+        except:
+            gobject.idle_add(hildon.hildon_banner_show_information, self.w, '',
+                "Could not connect to Youtube. Please check your network.")
 
 class YoutubeUI:
     def __init__(self, ctx):
