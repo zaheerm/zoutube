@@ -97,7 +97,8 @@ class YouTube(object):
 
     def _request(self, url, *params):
         """Return feed content of a specific url."""
-        xml = urllib2.urlopen(url % params, timeout=30).read()
+        self.last_url = url % params
+        xml = urllib2.urlopen(url % params).read()
         self.last_summary, entries = parse_youtube_xml(xml)
         return entries
 
@@ -441,7 +442,7 @@ class MainScreen:
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 0)
 
     def on_button_clicked(self, button, data):
-        videolist = YoutubeUI(self.ctx)
+        videolist = YoutubeUI(self.ctx, self.y)
         Thread(target=self.retrieve_video_list, args=(data, videolist)).start()
     
     def retrieve_video_list(self, data, videolist):
@@ -457,7 +458,8 @@ class MainScreen:
             else:
                 videos = self.y.video_by_category(data)
             gobject.idle_add(videolist.set_videos, videos)
-        except:
+        except Exception, e:
+            print e
             gobject.idle_add(hildon.hildon_banner_show_information, self.w, '',
                 "Could not connect to Youtube. Please check your network.")
 
@@ -470,10 +472,11 @@ class MainScreen:
                 "Could not connect to Youtube. Please check your network.")
 
 class YoutubeUI:
-    def __init__(self, ctx):
+    def __init__(self, ctx, y):
         # hildon has one program instance per app, so get instance
         self.p = hildon.Program.get_instance()
         self.ctx = ctx
+        self.y = y
         self.w = hildon.StackableWindow()
         self.w.connect("configure-event", self.on_configure_event)
         self.pan = hildon.PannableArea()
@@ -491,6 +494,37 @@ class YoutubeUI:
         self.w.show_all()
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.p.add_window(self.w)
+        if self.which('gpodder'):
+            self.menu = hildon.AppMenu()
+            b = gtk.Button("Add this feed to gPodder")
+            b.connect_after("clicked", self.on_add_feed) 
+            self.menu.append(b)
+            self.menu.show_all()
+            self.w.set_app_menu(self.menu)
+
+    def on_add_feed(self, button):
+        Thread(target=self.add_gpodder_feed).start()
+
+    def add_gpodder_feed(self):
+        import os
+        os.system("gpodder --fremantle --subscribe=%s" % (self.y.last_url))
+
+    def which(self, program):
+        import os
+        def is_exe(fpath):
+            return os.path.exists(fpath) and os.access(fpath, os.X_OK)
+
+        fpath, fname = os.path.split(program)
+        if fpath:
+            if is_exe(program):
+                return program
+        else:
+            for path in os.environ["PATH"].split(os.pathsep):
+                exe_file = os.path.join(path, program)
+                if is_exe(exe_file):
+                    return exe_file
+
+        return None
 
     def on_configure_event(self, window, event):
         if event.height > event.width:
@@ -559,7 +593,7 @@ class YoutubePlayer:
         self.is_playing = False
         self.update_id = -1
         self.changed_id = -1
-        self.seek_timeout_id = -1
+        self.seek_id = -1
 
         # hildon has one program instance per app, so get instance
         self.p = hildon.Program.get_instance()
