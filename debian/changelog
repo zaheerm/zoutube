@@ -1,3 +1,8 @@
+zoutube (0.1-10) unstable; urgency=low
+
+  * Replace box of buttons with a touch grid with thumbnails for video list
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Thu, 12 Nov 2009 23:59:16 +0000
 zoutube (0.1-9) unstable; urgency=low
 
   * Portrait mode (autorotation support)
