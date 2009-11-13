@@ -453,27 +453,59 @@ class YoutubeUI:
         self.p = hildon.Program.get_instance()
         self.ctx = ctx
         self.w = hildon.StackableWindow()
+        self.w.connect("configure-event", self.on_configure_event)
         self.pan = hildon.PannableArea()
+        self.model = gtk.ListStore(str, gtk.gdk.Pixbuf, int)
+        self.iconview = hildon.GtkIconView(gtk.HILDON_UI_MODE_NORMAL)
+        self.iconview.set_model(self.model)
+        self.iconview.set_pixbuf_column(1)
+        self.iconview.set_text_column(0)
+        self.iconview.connect("item-activated", self.on_item_activated)
         self.box = gtk.VBox()
         self.buttons = []
-        self.pan.add_with_viewport(self.box)
+        #self.pan.add_with_viewport(self.box)
+        self.pan.add(self.iconview)
         self.w.add(self.pan)
         self.w.show_all()
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.p.add_window(self.w)
 
+    def on_configure_event(self, window, event):
+        if event.height > event.width:
+            self.iconview.set_columns(1)
+        else:
+            self.iconview.set_columns(2)
+
     def set_videos(self, videos):
-        for v in videos:
-            b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
-                hildon.BUTTON_ARRANGEMENT_VERTICAL,
-                title = v.title)
-            menu = self.create_popup_menu(v)
-            b.tap_and_hold_setup(menu, None)
-            b.connect("clicked", self.on_button_clicked, v)
-            self.buttons.append(b)
-            self.box.pack_start(b, False, False, 0)
-        self.box.show_all()
+        self.videos = videos
+        Thread(target=self.retrieve_thumbnails).start()
+
+    def retrieve_thumbnails(self):
+        i = 0
+        for v in self.videos:
+            print "thumbnails: %r" % (v.thumbnails,)
+            thumbnail = urllib2.urlopen(v.thumbnails[(120, 90)][0]).read()
+            pixbufloader = gtk.gdk.PixbufLoader()
+            pixbufloader.write(thumbnail)
+            pixbufloader.close()
+            pixbuf = pixbufloader.get_pixbuf()
+            self.model.append([v.title, pixbuf, i])
+            i = i + 1
+            #b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
+            #    hildon.BUTTON_ARRANGEMENT_VERTICAL,
+            #    title = v.title)
+            #menu = self.create_popup_menu(v)
+            #b.tap_and_hold_setup(menu, None)
+            #b.connect("clicked", self.on_button_clicked, v)
+            #self.buttons.append(b)
+            #self.box.pack_start(b, False, False, 0)
+        #self.box.show_all()
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 0)
+
+    def on_item_activated(self, iconview, path):
+        tree_iter = self.model.get_iter(path)
+        v = self.videos[self.model.get_value(tree_iter, 2)]
+        video = YoutubePlayer(v, self.ctx)
 
     def create_popup_menu(self, v):
         menu = gtk.Menu()
