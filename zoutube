@@ -90,6 +90,7 @@ class YouTube(object):
     url_video_request_flv = "http://www.youtube.com/get_video?video_id=%s&t=%s"
     url_categories = "http://gdata.youtube.com/schemas/2007/categories.cat"
     url_video_by_category = "http://gdata.youtube.com/feeds/videos/-"
+    url_channels = "http://gdata.youtube.com/feeds/api/channels"
 
     def __init__(self):
         self.last_summary = {}
@@ -137,6 +138,10 @@ class YouTube(object):
         """Return videos from a specific category."""
         return self._request("%s/%s", self.url_video_by_category,
                              category_id)
+
+    def related_videos(self, video):
+        url = video.get_related_videos_link()[1]
+        return self._request(url)
 
     @classmethod
     def format_to_string(cls, fmt_id):
@@ -229,6 +234,11 @@ class InfoVideo(object):
             sizes.sort()
             return self.thumbnails[sizes[-1]][0]
 
+    def get_related_videos_link(self):
+        if self.links:
+            return self.links.get(
+                "http://gdata.youtube.com/schemas/2007#video.related",
+                None)
 
 class InfoVideoAuthor(object):
     """Store information of a YouTube video author."""
@@ -704,7 +714,10 @@ class YoutubePlayer:
         self.formats = formats
         self.menu = hildon.AppMenu()
         b = gtk.Button("Download")
-        b.connect_after("clicked", self.download)
+        b.connect_after("clicked", self.download) 
+        self.menu.append(b)
+        b = gtk.Button("Related Videos")
+        b.connect_after("clicked", self.get_related_videos)
         self.menu.append(b)
         for fmt in formats:
             if fmt != 22 and fmt != 35 and fmt != 34:
@@ -743,6 +756,17 @@ class YoutubePlayer:
         remote_object = bus.get_object("com.nokia.osso_browser", 
             "/com/nokia/osso_browser/request")
         remote_object.open_new_window(url, dbus_interface = "com.nokia.osso_browser")
+
+    def get_related_videos(self, button):
+        self.stop_streaming()
+        self.button.add(self.play_image)
+        videolist = YoutubeUI(self.ctx)
+        Thread(target=self.retrieve_video_list, args=(videolist,)).start()
+    
+    def retrieve_video_list(self, videolist):
+        self.y = YouTube()
+        videos = self.y.related_videos(self.video)
+        gobject.idle_add(videolist.set_videos, videos)
 
     def play_url(self, url):
         # need to do the display state stuff to stop the screen being dimmed on us
