@@ -1,3 +1,14 @@
+zoutube (0.1-12) unstable; urgency=low
+
+  * Fix bugs introduced with search and related videos
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Sat, 14 Nov 2009 21:17:58 +0000
+zoutube (0.1-11) unstable; urgency=low
+
+  * Do naive error correction
+  * Add subscribe with gPodder
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Fri, 13 Nov 2009 23:29:33 +0000
 zoutube (0.1-10) unstable; urgency=low
 
   * Replace box of buttons with a touch grid with thumbnails for video list

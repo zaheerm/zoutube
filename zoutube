@@ -419,7 +419,7 @@ class MainScreen:
         self.mainvbox.remove(self.searchbox)
         self.searchbox = None
         if searchtext:
-            videolist = YoutubeUI(self.ctx)
+            videolist = YoutubeUI(self.ctx, self.y)
             Thread(target=self.search_video_list, args=(searchtext, videolist)).start()
                     
     def retrieve_categories(self):
@@ -806,7 +806,7 @@ class YoutubePlayer:
     def get_related_videos(self, button):
         self.stop_streaming()
         self.button.add(self.play_image)
-        videolist = YoutubeUI(self.ctx)
+        videolist = YoutubeUI(self.ctx, self.y)
         Thread(target=self.retrieve_video_list, args=(videolist,)).start()
     
     def retrieve_video_list(self, videolist):
