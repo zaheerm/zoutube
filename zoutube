@@ -639,7 +639,7 @@ class YoutubePlayer:
         self.video = video
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.ctx = ctx
-
+        self.y = YouTube()
         self.start_streaming()
 
     def query_position(self):
@@ -810,7 +810,6 @@ class YoutubePlayer:
         Thread(target=self.retrieve_video_list, args=(videolist,)).start()
     
     def retrieve_video_list(self, videolist):
-        self.y = YouTube()
         videos = self.y.related_videos(self.video)
         gobject.idle_add(videolist.set_videos, videos)
 

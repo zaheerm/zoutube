@@ -1,3 +1,8 @@
+zoutube (0.1-13) unstable; urgency=low
+
+  * Really fix bug introduced with related videos
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Sat, 14 Nov 2009 21:28:58 +0000
 zoutube (0.1-12) unstable; urgency=low
 
   * Fix bugs introduced with search and related videos
