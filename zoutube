@@ -38,7 +38,7 @@ import gtk
 gtk.gdk.threads_init()
 import hildon
 import gst
-from threading import Thread
+from threading import Thread, Lock
 import dbus
 import osso
 
@@ -476,6 +476,7 @@ class YoutubeUI:
         # hildon has one program instance per app, so get instance
         self.p = hildon.Program.get_instance()
         self.ctx = ctx
+        self.active_lock = Lock()
         self.y = y
         self.w = hildon.StackableWindow()
         self.w.connect("configure-event", self.on_configure_event)
@@ -539,6 +540,7 @@ class YoutubeUI:
     def retrieve_thumbnails(self):
         i = 0
         for v in self.videos:
+            self.active_lock.acquire_lock()
             print "thumbnails: %r" % (v.thumbnails,)
             thumbnail = urllib2.urlopen(v.thumbnails[(120, 90)][0]).read()
             pixbufloader = gtk.gdk.PixbufLoader()
@@ -547,21 +549,15 @@ class YoutubeUI:
             pixbuf = pixbufloader.get_pixbuf()
             self.model.append([v.title, pixbuf, i])
             i = i + 1
-            #b = hildon.Button(gtk.HILDON_SIZE_FINGER_HEIGHT, 
-            #    hildon.BUTTON_ARRANGEMENT_VERTICAL,
-            #    title = v.title)
-            #menu = self.create_popup_menu(v)
-            #b.tap_and_hold_setup(menu, None)
-            #b.connect("clicked", self.on_button_clicked, v)
-            #self.buttons.append(b)
-            #self.box.pack_start(b, False, False, 0)
-        #self.box.show_all()
+            self.active_lock.release_lock()
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 0)
 
     def on_item_activated(self, iconview, path):
         tree_iter = self.model.get_iter(path)
         v = self.videos[self.model.get_value(tree_iter, 2)]
+        self.active_lock.acquire_lock()
         video = YoutubePlayer(v, self.ctx)
+        video.w.connect("delete-event", lambda x, y: self.active_lock.release_lock())
 
     def create_popup_menu(self, v):
         menu = gtk.Menu()
@@ -577,10 +573,6 @@ class YoutubeUI:
         remote_object = bus.get_object("com.nokia.osso_browser", 
             "/com/nokia/osso_browser/request")
         remote_object.open_new_window(url, dbus_interface = "com.nokia.osso_browser")
-
-    def on_button_clicked(self, button, v):
-        # display video
-        video = YoutubePlayer(v, self.ctx)
 
 class YoutubePlayer:
     UPDATE_INTERVAL = 500
