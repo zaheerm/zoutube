@@ -530,8 +530,10 @@ class YoutubeUI:
     def on_configure_event(self, window, event):
         if event.height > event.width:
             self.iconview.set_columns(1)
+            self.iconview.set_item_width(400)
         else:
             self.iconview.set_columns(2)
+            self.iconview.set_item_width(350)
 
     def set_videos(self, videos):
         self.videos = videos
