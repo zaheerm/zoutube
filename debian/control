@@ -2,11 +2,11 @@ Source: zoutube
 Section: user/network
 Priority: extra
 Maintainer: Zaheer Abbas Merali <zaheermerali@gmail.com>
-Build-Depends: debhelper (>= 4)
+Build-Depends-Indep: debhelper (>= 4)
 Standards-Version: 4
 
 Package: zoutube
-Architecture: any
+Architecture: all
 Depends: python-gst0.10, gstreamer0.10-flv, gstreamer0.10-ffmpeg, python-gtk2, python-dbus, python-hildon, python-osso (>= 0.4)
 Description: Browse and watch Youtube videos
   A simple front end to Youtube.

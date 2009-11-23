@@ -1,3 +1,15 @@
+zoutube (0.1-15) unstable; urgency=low
+
+  * Fix issue with transparent proxies caching and then fixing images to be
+    lower res on video page, causing different pages on gprs compared to wifi
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Sun, 22 Nov 2009 22:26:39 +0000
+zoutube (0.1-14) unstable; urgency=low
+
+  * Fix column width in iconview
+  * Introduce a lock so if thumbnails are still loading, it can go to video
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Fri, 20 Nov 2009 16:17:32 +0000
 zoutube (0.1-13) unstable; urgency=low
 
   * Really fix bug introduced with related videos
