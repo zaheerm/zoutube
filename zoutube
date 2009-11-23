@@ -166,16 +166,21 @@ class YouTube(object):
         }
 
         url = cls.url_video_request % str(video_id)
-
+        print "opening url %s" % (url,)
         request = urllib2.Request(url, None, std_headers)
         try:
             video_webpage = urllib2.urlopen(request).read()
         except (urllib2.URLError, httplib.HTTPException, socket.error), err:
+            print "got error %r" % (err,)
             return None
-
+        print "url opened"
         # Try to find the best video format available for this video
         # (http://forum.videohelp.com/topic336882-1800.html#1912972)
-        r3 = re.compile('.*"fmt_map"\:\s+"([^"]+)".*').search(video_webpage)
+        r3_exp = re.compile('.*"fmt_map"\:\s+"([^"]+)".*')
+        print "expression compiled"
+        print "here %d" % (len(video_webpage),)
+        r3=r3_exp.search(video_webpage)
+        print "r3 done"
         if r3:
             formats_available = urllib.unquote(r3.group(1)).split(',')
         else:
@@ -200,6 +205,7 @@ class YouTube(object):
                 available.append(fmt_id)
   
         r2 = re.compile('.*"t"\:\s+"([^"]+)".*').search(video_webpage)
+        print "r2 done"
         if r2:
             video_real_url = 'http://www.youtube.com/get_video?video_id=' + video_id + '&t=' + r2.group(1)
             return video_real_url, available
@@ -636,7 +642,8 @@ class YoutubePlayer:
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.ctx = ctx
         self.y = YouTube()
-        self.start_streaming()
+        self.ds = osso.DeviceState(self.ctx)
+        gobject.idle_add(self.start_streaming)
 
     def query_position(self):
         "Returns a (position, duration) tuple"
@@ -737,6 +744,7 @@ class YoutubePlayer:
         print "heartbeat"
         self.ds.display_state_on()
         self.ds.display_blanking_pause()
+        return True
 
     def button_pressed(self, w, event):
         if event.type == gtk.gdk._2BUTTON_PRESS:
@@ -749,12 +757,19 @@ class YoutubePlayer:
         return True
 
     def start_streaming(self):
-        # we use ximagesink solely for screenshotting ability
-        # less cpu usage would happen with videotestsrc ! xvimagesink
-        v = self.video        
+        print "start stream"
+        v = self.video
+        Thread(target=self.resolve_video).start()
+
+    def resolve_video(self):        
+        v = self.video
         url, formats = YouTube.resolve_video_url(v.id)
         self.url = url
         self.formats = formats
+        print "resolved"
+        gobject.idle_add(self.video_resolved)
+    
+    def video_resolved(self):
         self.menu = hildon.AppMenu()
         b = gtk.Button("Download")
         b.connect_after("clicked", self.download) 
@@ -762,19 +777,19 @@ class YoutubePlayer:
         b = gtk.Button("Related Videos")
         b.connect_after("clicked", self.get_related_videos)
         self.menu.append(b)
-        for fmt in formats:
+        for fmt in self.formats:
             if fmt != 22 and fmt != 35 and fmt != 34:
                 b = gtk.Button(YouTube.format_to_string(fmt))
-                b.connect_after("clicked", self.on_change_url, url, fmt)
+                b.connect_after("clicked", self.on_change_url, self.url, fmt)
                 self.menu.append(b)
         self.menu.show_all()
         self.w.set_app_menu(self.menu)
-        print "url: %r formats: %r" % (url, formats)
-        for fmt in formats:
+        print "url: %r formats: %r" % (self.url, self.formats)
+        for fmt in self.formats:
             if fmt != 22 and fmt != 35 and fmt != 34:
                 break
         self.current_format = fmt
-        url = "%s&fmt=%d" % (url, fmt)
+        url = "%s&fmt=%d" % (self.url, fmt)
         self.play_url(url)
 
     def try_lower_quality(self):
@@ -812,7 +827,7 @@ class YoutubePlayer:
 
     def play_url(self, url):
         # need to do the display state stuff to stop the screen being dimmed on us
-        self.ds = osso.DeviceState(self.ctx)
+        print "play url %s" % (url,)
         self.heartbeat()
         self.timer = gobject.timeout_add_seconds(30, self.heartbeat)
 
