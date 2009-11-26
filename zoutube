@@ -404,6 +404,14 @@ class MainScreen:
         self.mainvbox.pack_start(self.pan, True, True, 0)
         self.w.add(self.mainvbox)
         self.w.connect("key-press-event", self.key_pressed)
+        self.menu = hildon.AppMenu()
+        b = gtk.Button("Search")
+        b.connect_after("clicked", self.on_search_button_clicked) 
+        self.menu.append(b)
+        self.menu.show_all()
+        self.w.set_app_menu(self.menu)
+
+
         self.w.show_all()
         hildon.hildon_gtk_window_set_progress_indicator(self.w, 1)
         self.p.add_window(self.w)
@@ -412,15 +420,23 @@ class MainScreen:
     
     def key_pressed(self, widget, event):
         if not self.searchbox:
+            self.show_searchbox()
+            self.searchbox.emit("key-press-event", event)
+        return False
+
+    def on_search_button_clicked(self, widget):
+        self.show_searchbox()
+        return True
+
+    def show_searchbox(self):
+        if not self.searchbox:
             self.searchbox = hildon.Entry(gtk.HILDON_SIZE_FINGER_HEIGHT)
             self.searchbox.set_property('hildon-input-mode',
                 gtk.HILDON_GTK_INPUT_MODE_FULL)
             self.mainvbox.pack_start(self.searchbox, False, False, 0)
             self.mainvbox.show_all()
             self.searchbox.grab_focus()
-            self.searchbox.emit("key-press-event", event)
             self.searchbox.connect("activate", self.search_activated)
-        return False
 
     def search_activated(self, widget):
         searchtext = widget.props.text
