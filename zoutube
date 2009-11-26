@@ -408,6 +408,9 @@ class MainScreen:
         b = gtk.Button("Search")
         b.connect_after("clicked", self.on_search_button_clicked) 
         self.menu.append(b)
+        b = gtk.Button("About")
+        b.connect_after("clicked", self.on_about_button_clicked)
+        self.menu.append(b)
         self.menu.show_all()
         self.w.set_app_menu(self.menu)
 
@@ -418,6 +421,17 @@ class MainScreen:
         self.searchbox = None
         self.ctx = osso.context.Context("zoutube", "0.1")
     
+    def on_about_button_clicked(self, widget):
+        about = gtk.AboutDialog()
+        about.set_name("zoutube")
+        about.set_comments("A Youtube browser and player for Maemo 5")
+        about.set_version("0.1")
+        about.set_copyright("Zaheer Abbas Merali")
+        about.set_website("Http://github.com/zaheerm/zoutube")
+        about.set_logo_icon_name("zoutube")
+        about.connect("response", lambda x, y: x.destroy())
+        about.show()
+
     def key_pressed(self, widget, event):
         if not self.searchbox:
             self.show_searchbox()
