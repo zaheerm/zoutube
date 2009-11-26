@@ -1,3 +1,8 @@
+zoutube (0.1-18) unstable; urgency=low
+
+  * Add bugtracker to package
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Mon, 23 Nov 2009 18:16:18 +0000
 zoutube (0.1-17) unstable; urgency=low
 
   * Fix heartbeat to keep display on when video is playing

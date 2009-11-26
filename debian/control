@@ -10,6 +10,7 @@ Architecture: all
 Depends: python-gst0.10, gstreamer0.10-flv, gstreamer0.10-ffmpeg, python-gtk2, python-dbus, python-hildon, python-osso (>= 0.4)
 Description: Browse and watch Youtube videos
   A simple front end to Youtube.
+XSBC-Bugtracker: http://github.com/zaheerm/zoutube/issues
 XB-Maemo-Icon-26:
   iVBORw0KGgoAAAANSUhEUgAAABoAAAAaCAYAAACpSkzOAAAAAXNSR0IArs4c
   6QAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0
