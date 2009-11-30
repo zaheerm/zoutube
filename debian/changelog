@@ -1,3 +1,9 @@
+zoutube (0.1-19) unstable; urgency=low
+
+  * Add search and about box
+  * Dep on a newer gstreamer0.10-ffmpeg
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Mon, 30 Nov 2009 14:13:05 +0000
 zoutube (0.1-18) unstable; urgency=low
 
   * Add bugtracker to package
