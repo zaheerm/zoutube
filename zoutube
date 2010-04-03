@@ -54,26 +54,6 @@ except ImportError:
 	    from elementtree import ElementTree
 
 
-# taken from play.py in gst-python examples
-class VideoWidget(gtk.DrawingArea):
-    def __init__(self):
-        gtk.DrawingArea.__init__(self)
-        self.imagesink = None
-        self.unset_flags(gtk.DOUBLE_BUFFERED)
-        self.add_events(gtk.gdk.BUTTON_PRESS_MASK)
-
-    def do_expose_event(self, event):
-        if self.imagesink:
-            self.imagesink.expose()
-            return False
-        else:
-            return True
-
-    def set_sink(self, sink):
-        assert self.window.xid
-        self.imagesink = sink
-        self.imagesink.set_xwindow_id(self.window.xid)
-
 def to_utf8(str):
     return unicode(str).decode('utf8')
 
@@ -189,9 +169,14 @@ class YouTube(object):
         if r3:
             formats_available = urllib.unquote(r3.group(1)).split(',')
         else:
-            formats_available = []
+            r3_exp = re.compile('&fmt_map=([^&]+).*')
+            r3 = r3_exp.search(video_webpage)
+            if r3:
+                formats_available = urllib.unquote(r3.group(1)).split(',')
+            else:
+                formats_available = []
         print "formats available: %r" % (formats_available,)
-        # This is the proritized list of formats that gPodder will
+        # This is the proritized list of formats that zoutube will
         # use, depending on what is available from top to bottom.
         format_priorities = [
                 '22/2000000/9/0/115', # 1280x720
@@ -210,9 +195,11 @@ class YouTube(object):
                 available.append(fmt_id)
 
         r2 = re.compile('.*"t"\:\s+"([^"]+)".*').search(video_webpage)
-        print "r2 done"
+        if not r2:
+            r2 = re.compile('.*&t=([^&]+)').search(video_webpage)
         if r2:
-            video_real_url = 'http://www.youtube.com/get_video?video_id=' + video_id + '&t=' + r2.group(1)
+            video_real_url = 'http://www.youtube.com/get_video?video_id=' \
+                + video_id + '&t=' + r2.group(1)
             return video_real_url, available
         return None, None
 
