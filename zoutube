@@ -160,7 +160,7 @@ class YouTube(object):
         try:
             video_webpage = urllib2.urlopen(request).read()
         except (urllib2.URLError, httplib.HTTPException, socket.error), err:
-            print "got error %r" % (err,)
+            print "got error with url: %s %r" % (url, err,)
             return None
         # Try to find the best video format available for this video
         # (http://forum.videohelp.com/topic336882-1800.html#1912972)
@@ -619,9 +619,13 @@ class YoutubeWithMediaPlayer:
         box = gtk.VBox()
         self.format_picker = hildon.PickerButton(gtk.HILDON_SIZE_AUTO, hildon.BUTTON_ARRANGEMENT_VERTICAL)
         format_selector = hildon.TouchSelector(text=True)
-        url, formats = YouTube.resolve_video_url(video.id)
-        self.url = url
-        self.formats = formats
+        result = YouTube.resolve_video_url(video.id)
+        if result:
+            self.url = result[0]
+            self.formats = result[1]
+        else:
+            self.url = ""
+            self.formats = []
         print "resolved"
         print "url: %r formats: %r" % (self.url, self.formats)
         current_fmt = ""
