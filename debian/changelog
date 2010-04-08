@@ -1,3 +1,8 @@
+zoutube (0.2-2) unstable; urgency=low
+
+  * Use icons by joppu, thanks
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Thu, 8 Apr 2010 06:35:11 +0430
 zoutube (0.2-1) unstable; urgency=low
 
   * Use media player instead of own widget
