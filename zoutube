@@ -664,7 +664,7 @@ class YoutubeWithMediaPlayer:
 
     def on_download_clicked(self, button):
         fmt = YouTube.string_to_format(self.format_picker.get_value())
-        url = "%s&fmt=%d" % (self.url, self.current_format)
+        url = "%s&fmt=%d" % (self.url, fmt)
         bus = dbus.SessionBus()
         remote_object = bus.get_object("com.nokia.osso_browser",
             "/com/nokia/osso_browser/request")
