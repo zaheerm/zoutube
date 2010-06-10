@@ -1,3 +1,8 @@
+zoutube (0.2-3) unstable; urgency=low
+
+  * Fix download
+
+ -- Zaheer Abbas Merali <zaheermerali@gmail.com>  Thu, 10 Jun 2010 15:47:00 +0100
 zoutube (0.2-2) unstable; urgency=low
 
   * Use icons by joppu, thanks
